@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trystero Чат</title>
+    <style>
+        body { 
+            font-family: sans-serif; 
+            max-width: 800px; 
+            margin: 20px auto; 
+            padding: 20px; 
+        }
+        #chatLog { 
+            height: 300px; 
+            border: 1px solid #ccc; 
+            padding: 10px; 
+            margin-bottom: 10px; 
+            overflow-y: auto; 
+        }
+        #messageInput { 
+            width: 70%; 
+            padding: 8px; 
+        }
+        button { 
+            padding: 8px 15px; 
+        }
+        .message { 
+            margin-bottom: 8px; 
+        }
+        .system { 
+            color: #666; 
+            font-style: italic; 
+        }
+    </style>
+</head>
+<body>
+    <h1>Чат-комната</h1>
+    <p>Ваш ID: <strong id="myId">...</strong></p>
+    <p>Участников в комнате: <strong id="peerCount">0</strong></p>
+    
+    <div id="chatLog"></div>
+    
+    <input type="text" id="messageInput" placeholder="Введите ваше сообщение..." />
+    <button onclick="sendMessage()">Отправить</button>
+
+    <!-- Подключаем библиотеку Trystero -->
+    <script type="module">
+        // import { joinRoom, selfId } from 'https://esm.run/trystero';
+        import { joinRoom, selfId } from 'https://cdn.jsdelivr.net/npm/trystero/+esm';
+
+        // Конфигурация комнаты
+        const config = { appId: 'myChatApp_v1' }; // Уникальный идентификатор приложения
+        const room = joinRoom(config, 'testRoom'); // Комната 'testRoom'
+
+        // Получаем элементы DOM
+        const myIdElement = document.getElementById('myId');
+        const peerCountElement = document.getElementById('peerCount');
+        const chatLogElement = document.getElementById('chatLog');
+        const messageInputElement = document.getElementById('messageInput');
+
+        // Показываем свой ID
+        myIdElement.textContent = selfId;
+
+        // Создаем действие для обмена сообщениями
+        const [sendMessageAction, onMessage] = room.makeAction('chatMessage');
+
+        // Обрабатываем входящие сообщения
+        onMessage((data, peerId) => {
+            addMessageToChat(`Пользователь ${peerId}: ${data}`, 'user');
+        });
+
+        // Отслеживаем подключение новых участников
+        room.onPeerJoin(peerId => {
+            addMessageToChat(`Пользователь ${peerId} присоединился к комнате.`, 'system');
+            updatePeerCount();
+        });
+
+        // Отслеживаем отключение участников
+        room.onPeerLeave(peerId => {
+            addMessageToChat(`Пользователь ${peerId} покинул комнату.`, 'system');
+            updatePeerCount();
+        });
+
+        // Функция для отправки сообщения
+        window.sendMessage = () => {
+            const message = messageInputElement.value.trim();
+            if (message) {
+                sendMessageAction(message); // Отправляем сообщение всем в комнате
+                addMessageToChat(`Я: ${message}`, 'own'); // Показываем у себя
+                messageInputElement.value = ''; // Очищаем поле ввода
+            }
+        };
+
+        // Функция для добавления сообщения в чат
+        function addMessageToChat(text, type) {
+            const messageElement = document.createElement('div');
+            messageElement.className = `message ${type}`;
+            messageElement.textContent = text;
+            chatLogElement.appendChild(messageElement);
+            chatLogElement.scrollTop = chatLogElement.scrollHeight; // Автопрокрутка
+        }
+
+        // Функция для обновления счетчика участников
+        function updatePeerCount() {
+            const peers = room.getPeers(); // Получаем список всех участников
+            peerCountElement.textContent = peers.length;
+        }
+
+        // Отправка сообщения по нажатию Enter
+        messageInputElement.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // Показываем сообщение о собственном подключении
+        addMessageToChat("Вы присоединились к комнате 'testRoom'.", 'system');
+    </script>
+</body>
+</html>
